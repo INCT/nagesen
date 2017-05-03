@@ -10,97 +10,43 @@
 
 module.exports = (robot) ->
 
-  robot.hear /badger/i, (res) ->
-    res.send "Badgers? BADGERS? WE DON'T NEED NO STINKIN BADGERS"
+  # 現在のレコード数
+  length = robot.brain.get('records.length') >> 0
 
-  robot.respond /open the (.*) doors/i, (res) ->
-    doorType = res.match[1]
-    if doorType is "pod bay"
-      res.reply "I'm afraid I can't let you do that."
+  robot.respond /(\d+).*(add|\ふえた)/i, (res) ->
+    # e.g. res.match[1] === '1234'
+    amount = parseInt res.match[1]
+    robot.brain.set "records.#{length}", "#{amount}\tadd"
+    robot.brain.set "records.length", ++length
+    res.reply "すごーい！お金がふえたよ +#{amount}円"
+
+  robot.respond /(\d+).*(sub|\へった)/i, (res) ->
+    # e.g. res.match[1] === '1234'
+    amount = parseInt res.match[1]
+    robot.brain.set "records.#{length}", "#{amount}\tsub"
+    robot.brain.set "records.length", ++length
+    res.reply "ざんねん！お金がへったよ -#{amount}円"
+
+  robot.respond /back|\もどす/, (res) ->
+    if length > 0
+      robot.brain.set "records.length", --length
+      res.reply "もどしたよ！" + robot.brain.get "records.#{length}"
     else
-      res.reply "Opening #{doorType} doors"
+      res.reply "えっ？"
 
-  robot.hear /I like pie/i, (res) ->
-    res.emote "makes a freshly baked pie"
+  robot.respond /history|\りれき/i, (res) ->
+    records = [0..length - 1].map (i) -> robot.brain.get "records.#{i}"
+    res.reply "けんすう: #{length}件\n" + records.join('\n')
 
-  lulz = ['lol', 'rofl', 'lmao']
-
-  robot.respond /lulz/i, (res) ->
-    res.send res.random lulz
-
-  robot.topic (res) ->
-    res.send "#{res.message.text}? That's a Paddlin'"
-
-
-  enterReplies = ['Hi', 'Target Acquired', 'Firing', 'Hello friend.', 'Gotcha', 'I see you']
-  leaveReplies = ['Are you still there?', 'Target lost', 'Searching']
-
-  robot.enter (res) ->
-    res.send res.random enterReplies
-  robot.leave (res) ->
-    res.send res.random leaveReplies
-
-  answer = process.env.HUBOT_ANSWER_TO_THE_ULTIMATE_QUESTION_OF_LIFE_THE_UNIVERSE_AND_EVERYTHING
-
-  robot.respond /what is the answer to the ultimate question of life/, (res) ->
-    unless answer?
-      res.send "Missing HUBOT_ANSWER_TO_THE_ULTIMATE_QUESTION_OF_LIFE_THE_UNIVERSE_AND_EVERYTHING in environment: please set and try again"
-      return
-    res.send "#{answer}, but what is the question?"
-
-  robot.respond /you are a little slow/, (res) ->
-    setTimeout () ->
-      res.send "Who you calling 'slow'?"
-    , 60 * 1000
-
-  annoyIntervalId = null
-
-  robot.respond /annoy me/, (res) ->
-    if annoyIntervalId
-      res.send "AAAAAAAAAAAEEEEEEEEEEEEEEEEEEEEEEEEIIIIIIIIHHHHHHHHHH"
-      return
-
-    res.send "Hey, want to hear the most annoying sound in the world?"
-    annoyIntervalId = setInterval () ->
-      res.send "AAAAAAAAAAAEEEEEEEEEEEEEEEEEEEEEEEEIIIIIIIIHHHHHHHHHH"
-    , 1000
-
-  robot.respond /unannoy me/, (res) ->
-    if annoyIntervalId
-      res.send "GUYS, GUYS, GUYS!"
-      clearInterval(annoyIntervalId)
-      annoyIntervalId = null
+  robot.respond /how much|\いくら/i, (res) ->
+    if length > 0
+      records = [0..length - 1].map (i) -> robot.brain.get "records.#{i}"
+      money = 0
+      for record in records
+        # e.g. record === '1234 add'
+        matches = /(\d+)\s(add|sub)/i.exec record
+        if matches[2] == 'add' then money += parseInt matches[1]
+        if matches[2] == 'sub' then money -= parseInt matches[1]
+      res.reply "#{money}円"
     else
-      res.send "Not annoying you right now, am I?"
-
-
-  robot.router.post '/hubot/chatsecrets/:room', (req, res) ->
-    room   = req.params.room
-    data   = JSON.parse req.body.payload
-    secret = data.secret
-
-    robot.messageRoom room, "I have a secret: #{secret}"
-
-    res.send 'OK'
-
-  robot.error (err, res) ->
-    robot.logger.error "DOES NOT COMPUTE"
-
-    if res?
-      res.reply "DOES NOT COMPUTE"
-
-  robot.respond /have a soda/i, (res) ->
-    # Get number of sodas had (coerced to a number).
-    sodasHad = robot.brain.get('totalSodas') * 1 or 0
-
-    if sodasHad > 4
-      res.reply "I'm too fizzy.."
-
-    else
-      res.reply 'Sure!'
-
-      robot.brain.set 'totalSodas', sodasHad+1
-
-  robot.respond /sleep it off/i, (res) ->
-    robot.brain.set 'totalSodas', 0
-    res.reply 'zzzzz'
+      res.reply "0円"
