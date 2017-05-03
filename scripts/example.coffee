@@ -35,8 +35,11 @@ module.exports = (robot) ->
       res.send "えっ？"
 
   robot.hear /history|\りれき/i, (res) ->
-    records = [0..length - 1].map (i) -> robot.brain.get "records.#{i}"
-    res.send "けんすう: #{length}件\n" + records.join('\n')
+    if length > 0
+      records = [0..length - 1].map (i) -> robot.brain.get "records.#{i}"
+      res.send "けんすう: #{length}件\n" + records.join('\n')
+    else
+      res.send "は？"
 
   robot.hear /how much|\いくら/i, (res) ->
     if length > 0
