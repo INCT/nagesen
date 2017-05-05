@@ -15,6 +15,10 @@ module.exports = (robot) ->
   # 現在のレコード数
   length = robot.brain.get('records.length') >> 0
 
+  robot.hear /^\/\//, (res) ->
+    # コメント
+    res.finish()
+
   robot.hear /(\d+).*(add|ふえた)\D*([\d\:\/\s]+)?/i, (res) ->
     # e.g. res.match[1] == '1234'
     amount = parseInt res.match[1]
